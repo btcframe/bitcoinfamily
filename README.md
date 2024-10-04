@@ -1,6 +1,6 @@
 # BitcoinFamily
 
-![BitcoinFamily Dashboard Preview](./preview.png)
+![BitcoinFamily Dashboard Preview](./screenshot.png)
 
 **BitcoinFamily** is an open-source Bitcoin dashboard designed for family and friends to easily create their own personalized Bitcoin dashboard. This dashboard allows users to monitor real-time Bitcoin data, including price, wallet distributions, and a historic price chart.
 
