@@ -1,0 +1,401 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <title>Bitcoin Family Dashboard</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Include your CSS files -->
+    <link rel="stylesheet" href="assets/css/main.css" />
+    <link rel="stylesheet" href="assets/css/template.css" />
+    <link rel="icon" href="favicon.png" type="image/x-icon">
+
+    <!-- Include Chart.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.2/Chart.bundle.min.js" integrity="sha256-XF29CBwU1MWLaGEnsELogU6Y6rcc5nCkhhx89nFMIDQ=" crossorigin="anonymous"></script>
+
+    <script>
+    // Function to toggle full-screen mode
+    function toggleFullScreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen();
+        } else if (document.exitFullscreen) {
+            document.exitFullscreen(); 
+        }
+    }
+
+    // Fetch historic prices for the chart
+    function fetchHistoricPrices() {
+        return fetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=30')
+            .then(response => response.json())
+            .then(data => {
+                const prices = data.prices.map(price => ({
+                    date: new Date(price[0]),
+                    value: price[1]
+                }));
+
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                // Filter data points to reduce clutter
+                const filteredPrices = [];
+                const uniqueDates = new Set();
+                prices.forEach((price, index) => {
+                    const priceDate = new Date(price.date);
+                    priceDate.setHours(0, 0, 0, 0);
+                    const dateString = priceDate.toISOString().split('T')[0];
+                    if ((index % 10 === 0 || priceDate.getTime() === today.getTime()) && !uniqueDates.has(dateString)) {
+                        filteredPrices.push(price);
+                        uniqueDates.add(dateString);
+                    }
+                });
+
+                const formattedPrices = filteredPrices.map(price => ({
+                    date: price.date.toISOString().split('T')[0].substring(5).replace('-', '.'),
+                    value: price.value
+                }));
+
+                return formattedPrices;
+            });
+    }
+
+    // Update the chart with new data
+    function updateChart(chart, prices) {
+        const labels = prices.map(price => price.date);
+        const values = prices.map(price => price.value);
+
+        chart.data.labels = labels;
+        chart.data.datasets[0].data = values;
+        chart.update();
+    }
+
+    // Fetch the current Bitcoin price from the API
+    function fetchPriceFromAPI() {
+        return fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true')
+            .then(response => response.json())
+            .then(data => {
+                const currentPrice = data.bitcoin.usd;
+                const hourChangePercentage = data.bitcoin.usd_24h_change.toFixed(2);
+                const hourChangeColor = hourChangePercentage > 0 ? "green" : hourChangePercentage < 0 ? "red" : "gray";
+                const hourChangeSign = hourChangePercentage > 0 ? "+" : "";
+                const arrowDirection = hourChangePercentage > 0 ? "▲" : hourChangePercentage < 0 ? "▼" : "■";
+
+                const priceData = {
+                    currentPrice: currentPrice,
+                    hourChangePercentage: hourChangePercentage,
+                    hourChangeColor: hourChangeColor,
+                    hourChangeSign: hourChangeSign,
+                    arrowDirection: arrowDirection,
+                    timestamp: new Date().getTime()
+                };
+                localStorage.setItem('priceData', JSON.stringify(priceData));
+                return priceData;
+            });
+    }
+
+    // Get cached price data or fetch new data if outdated
+    function getPriceData() {
+        const cachedData = localStorage.getItem('priceData');
+        if (cachedData) {
+            const parsedData = JSON.parse(cachedData);
+            const now = new Date().getTime();
+            if (now - parsedData.timestamp < 99000) { // 99 seconds
+                return Promise.resolve(parsedData);
+            }
+        }
+        return fetchPriceFromAPI();
+    }
+
+    // Define family members and their assets
+    const familyMembers = [
+        {
+            name: "Alice",
+            avatar: "https://i.pravatar.cc/150?img=5",
+            btcAmount: 0.12345678, // Replace with actual BTC amount
+            avgCost: 50000.00,     // Replace with actual average cost
+            elementIds: {
+                btc: 'alice-btc',
+                usd: 'alice-usd',
+                pl: 'alice-pl'
+            }
+        },
+        {
+            name: "Bob",
+            avatar: "https://i.pravatar.cc/150?img=12",
+            btcAmount: 0.23456789,
+            avgCost: 55000.00,
+            elementIds: {
+                btc: 'bob-btc',
+                usd: 'bob-usd',
+                pl: 'bob-pl'
+            }
+        },
+        {
+            name: "Charlie",
+            avatar: "https://i.pravatar.cc/150?img=20",
+            btcAmount: 0.34567890,
+            avgCost: 60000.00,
+            elementIds: {
+                btc: 'charlie-btc',
+                usd: 'charlie-usd',
+                pl: 'charlie-pl'
+            }
+        },
+        {
+            name: "Dana",
+            avatar: "https://i.pravatar.cc/150?img=25",
+            btcAmount: 0.45678901,
+            avgCost: 65000.00,
+            elementIds: {
+                btc: 'dana-btc',
+                usd: 'dana-usd',
+                pl: 'dana-pl'
+            }
+        }
+    ];
+
+    // Update price and calculations for each family member
+    function updatePrice() {
+        getPriceData().then(data => {
+            const { currentPrice, hourChangePercentage, hourChangeColor, hourChangeSign, arrowDirection } = data;
+
+            // Update the live icon and current price
+            document.getElementById('live-icon').style.backgroundColor = hourChangeColor;
+            document.getElementById('current-price').innerText = "$" + currentPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+            // Update USD amounts and P&L for each family member
+            familyMembers.forEach(member => {
+                const usdAmount = member.btcAmount * currentPrice;
+                const usdAmountFormatted = "$" + usdAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                document.getElementById(member.elementIds.usd).innerText = usdAmountFormatted;
+                document.getElementById(member.elementIds.usd).style.color = hourChangeColor;
+
+                const totalPL = usdAmount - (member.btcAmount * member.avgCost);
+                const totalPLFormatted = `${totalPL >= 0 ? "+" : ""}$${totalPL.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                document.getElementById(member.elementIds.pl).innerText = totalPLFormatted;
+                document.getElementById(member.elementIds.pl).style.color = totalPL >= 0 ? "green" : "red";
+            });
+
+            // Update 24-hr change section
+            document.getElementById('24hr-change').innerHTML = `<font color="${hourChangeColor}">${hourChangeSign}${hourChangePercentage}% <span class="arrow">${arrowDirection}</span></font>`;
+
+            // Update Avg Cost from the first member's avgCost (as an example)
+            const avgCost = familyMembers[0].avgCost;
+            document.getElementById('avg-cost').innerText = "$" + avgCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }).catch(error => console.error('Error fetching the current price:', error));
+    }
+
+    // Function to get the date string in 'dd-mm-yyyy' format required by CoinGecko API
+    function getDateString(daysAgo) {
+        const date = new Date();
+        date.setDate(date.getDate() - daysAgo);
+        const day = ("0" + date.getDate()).slice(-2);
+        const month = ("0" + (date.getMonth() + 1)).slice(-2); // Months are zero-indexed
+        const year = date.getFullYear();
+        return `${day}-${month}-${year}`;
+    }
+
+    // Fetch historical price for a given date
+    function fetchHistoricalPrice(daysAgo) {
+        const dateString = getDateString(daysAgo);
+        return fetch(`https://api.coingecko.com/api/v3/coins/bitcoin/history?date=${dateString}`)
+            .then(response => response.json())
+            .then(data => {
+                return data.market_data.current_price.usd;
+            })
+            .catch(error => console.error('Error fetching historical price:', error));
+    }
+
+    // Update historical prices
+    function updateHistoricalPrices() {
+        // Last Week (7 days ago)
+        fetchHistoricalPrice(7).then(price => {
+            document.getElementById('price-last-week').innerText = "$" + price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        });
+
+        // Last Month (30 days ago)
+        fetchHistoricalPrice(30).then(price => {
+            document.getElementById('price-last-month').innerText = "$" + price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        });
+
+        // Last Year (365 days ago)
+        fetchHistoricalPrice(365).then(price => {
+            document.getElementById('price-last-year').innerText = "$" + price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        });
+    }
+
+    // Initialize the dashboard when the DOM is loaded
+    document.addEventListener('DOMContentLoaded', (event) => {
+        // Initialize the chart
+        var ctx = document.getElementById("myChart").getContext('2d');
+        var gradientStroke = ctx.createLinearGradient(0, 0, 2000, 0);
+        gradientStroke.addColorStop(0, "rgba(124, 77, 255, .3)");
+        gradientStroke.addColorStop(0.3, "rgba(68, 138, 255, .3)");
+        gradientStroke.addColorStop(0.6, "rgba(0, 188, 212, .5)");
+        gradientStroke.addColorStop(1, "rgba(29, 233, 182, .6)");
+
+        var myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Price USD',
+                    data: [],
+                    lineTension: 0,
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    backgroundColor: gradientStroke,
+                    borderWidth: 1,
+                    pointRadius: 3,
+                    pointHitRadius: 5
+                }]
+            },
+            options: {
+                legend: {
+                    display: false
+                },
+                tooltips: {
+                    callbacks: {
+                        title: function(tooltipItems, data) {
+                            return "📅 " + tooltipItems[0].xLabel;
+                        },
+                        label: function(tooltipItem, data) {
+                            return "$" + parseFloat(tooltipItem.yLabel).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                        }
+                    }
+                },
+                scales: {
+                    yAxes: [{
+                        ticks: {
+                            beginAtZero: false,
+                            callback: function(value, index, values) {
+                                return '$' + (value / 1000).toFixed(0) + 'k';
+                            }
+                        }
+                    }],
+                    xAxes: [{
+                        ticks: {
+                            autoSkip: true,
+                            maxTicksLimit: 10,
+                            callback: function(value, index, values) {
+                                return value;
+                            }
+                        }
+                    }]
+                }
+            }
+        });
+
+        // Fetch and update the chart data
+        fetchHistoricPrices().then(prices => {
+            updateChart(myChart, prices);
+        });
+
+        // Populate BTC amounts for each family member
+        familyMembers.forEach(member => {
+            document.getElementById(member.elementIds.btc).innerText = member.btcAmount.toFixed(8) + " BTC";
+        });
+
+        // Initial calls to set values
+        updatePrice();
+        updateHistoricalPrices();
+
+        // Update every 99 seconds
+        setInterval(updatePrice, 99000);
+        setInterval(updateHistoricalPrices, 99000);
+    });
+    </script>
+    <noscript><link rel="stylesheet" href="assets/css/noscript.css" /></noscript>
+</head>
+<body>
+
+    <div id="fullscreen-icon" onclick="toggleFullScreen()"></div>
+
+    <br /><br />
+    <center><img src="https://bitcoin.org/img/icons/opengraph.png" height="80"></center>
+
+    <div id="wrapper" class="bottom-space">
+        <section id="main">
+            <header>
+                <table width="*">
+                    <tr>
+                        <!-- Family Member Sections -->
+                        <!-- Alice -->
+                        <td width="322">
+                            <span class="avatar"><img src="https://i.pravatar.cc/150?img=5" alt="Alice" /></span>
+                            <h1>Alice</h1>
+                            <p id="alice-btc" class="btc-amount btc-box"></p>
+                            <font color="green"><h3 id="alice-usd" class="usd-amount">$00,000.00</h3></font>
+                            <p id="alice-pl" class="pl-section"></p>
+                        </td>
+                        <!-- Bob -->
+                        <td width="322">
+                            <span class="avatar"><img src="https://i.pravatar.cc/150?img=12" alt="Bob" /></span>
+                            <h1>Bob</h1>
+                            <p id="bob-btc" class="btc-amount btc-box"></p>
+                            <font color="green"><h3 id="bob-usd" class="usd-amount">$00,000.00</h3></font>
+                            <p id="bob-pl" class="pl-section"></p>
+                        </td>
+                        <!-- Charlie -->
+                        <td width="322">
+                            <span class="avatar"><img src="https://i.pravatar.cc/150?img=49" alt="Charlie" /></span>
+                            <h1>Charlie</h1>
+                            <p id="charlie-btc" class="btc-amount btc-box"></p>
+                            <font color="green"><h3 id="charlie-usd" class="usd-amount">$00,000.00</h3></font>
+                            <p id="charlie-pl" class="pl-section"></p>
+                        </td>
+                        <!-- Dana -->
+                        <td width="322">
+                            <span class="avatar"><img src="https://i.pravatar.cc/150?img=25" alt="Dana" /></span>
+                            <h1>Dana</h1>
+                            <p id="dana-btc" class="btc-amount btc-box"></p>
+                            <font color="green"><h3 id="dana-usd" class="usd-amount">$00,000.00</h3></font>
+                            <p id="dana-pl" class="pl-section"></p>
+                        </td>
+                    </tr>
+                </table>
+                <br/><br/>
+            </header>
+        </section>
+        <br />
+        <section id="main">
+            <header>
+                <table width="*">
+                    <tr>
+                        <td width="150">
+                            <h2 class="section-title">BTC Price</h2>
+                            <div id="live-icon"></div>
+                            <span id="current-price">$00,000.00</span>
+                        </td>
+                        <td width="150">
+                            <h2 class="section-title">Avg Cost</h2>
+                            <span id="avg-cost">$00,000.00</span>
+                        </td>
+                        <td width="150">
+                            <h2 class="section-title">24-hr Change</h2>
+                            <span id="24hr-change">
+                                <font color="green">+0.00% <span class="arrow">▲</span></font>
+                            </span>
+                        </td>
+                        <td width="150">
+                            <h2 class="section-title">Last Week</h2>
+                            <span id="price-last-week">$00,000.00</span>
+                        </td>
+                        <td width="150">
+                            <h2 class="section-title">Last Month</h2>
+                            <span id="price-last-month">$00,000.00</span>
+                        </td>
+                        <td width="150">
+                            <h2 class="section-title">Last Year</h2>
+                            <span id="price-last-year">$00,000.00</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="6">
+                            <br />
+                            <canvas id="myChart" width="1285" height="395"></canvas>
+                        </td>
+                    </tr>
+                </table>
+            </header>
+        </section>
+    </div>
+</body>
+</html>
