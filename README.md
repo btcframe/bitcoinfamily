@@ -1,5 +1,7 @@
 # BitcoinFamily
 
+![BitcoinFamily Dashboard Preview](./screenshot.png)
+
 **BitcoinFamily** is an open-source Bitcoin dashboard designed for family and friends to easily create their own personalized Bitcoin dashboard. This dashboard allows users to monitor real-time Bitcoin data, including price, wallet distributions, and a historic price chart.
 
 ## Key Features:
@@ -13,18 +15,7 @@
 
 ## Installation Instructions and Contribution:
 
-```bash
-1. Clone the repository:
-   git clone https://github.com/yourusername/BitcoinFamily.git
-
-2. Install dependencies:
-   cd BitcoinFamily
-   npm install
-
-3. Start the local server:
-   npm start
-
-4. Open your browser and navigate to http://localhost:3000 to view the dashboard.
+Download the whole package and use the html file to make changes to the family members and their Bitcoin holdings. 
 
 Contribution:
 Feel free to contribute by forking the repository, making changes, and submitting pull requests. We welcome contributions that improve the dashboard and enhance its features for family use.
